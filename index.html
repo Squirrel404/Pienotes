@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pienotes - Notes App Using MathQuill</title>
+
+    <link rel="stylesheet" href="mathquill.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="mathquill.js"></script>
+    <script src="mathquill.min.js"></script>
+
+    <style>
+        :root {
+            /* Permanent Dark Mode Palette */
+            --bg-color: #121212;
+            --sidebar-bg: #1e1e1e;
+            --card-bg: #252525;
+            --text-color: #e0e0e0;
+            --sidebar-text: #b0b0b0;
+            --focus-color: #0d6efd;
+            --border-color: #333;
+            --danger-color: #ff5252;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;  /* Fallback for older browsers */
+            height: 100dvh; /* The magic fix for mobile address bars */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 280px;
+            min-width: 280px;
+            background-color: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            transition: margin-left 0.3s ease;
+        }
+
+        #sidebar.collapsed {
+            margin-left: -280px;
+        }
+
+        #sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #444;
+        }
+
+        #new-note-btn {
+            background: var(--focus-color);
+            border: none;
+            font-weight: bold;
+            flex-grow: 1;
+        }
+
+        #new-note-btn:hover {
+            background: #0b5ed7;
+        }
+
+        #note-list {
+            list-style: none;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .note-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-item:hover {
+            background: #2a2a2a;
+        }
+
+        .note-item.active {
+            background-color: #333;
+            border-left: 4px solid var(--focus-color);
+            color: white;
+        }
+
+        .delete-note-btn {
+            opacity: 0;
+            background: transparent;
+            color: var(--danger-color);
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+
+        .note-item:hover .delete-note-btn {
+            opacity: 1;
+        }
+
+        /* Main Content */
+        #main-content {
+            flex-grow: 1;
+            padding: 0px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-width: 300px;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        #toggle-sidebar-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: white;
+            font-size: 1.2rem;
+            padding: 5px 10px;
+            margin-left: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #toggle-sidebar-btn:hover {
+            background: #333;
+        }
+
+        #note-title {
+            font-size: 2rem;
+            border: none;
+            background: transparent;
+            color: white;
+            outline: none;
+            flex-grow: 1;
+        }
+
+        #editor-container {
+            flex-grow: 1;
+            background: var(--card-bg);
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            font-size: 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            overflow-y: auto;
+        }
+
+        /* Blocks */
+        .block {
+            padding: 5px 10px;
+            border-radius: 4px;
+            min-height: 1.5em;
+            flex-shrink: 0; /* Prevents blocks from squishing when the screen fills up */
+        }
+
+        .text-block {
+            outline: none;
+            border-left: 3px solid transparent;
+            color: #f1f1f1;
+        }
+
+        .text-block:focus {
+            border-left: 3px solid var(--focus-color);
+            background: #2d2d2d;
+        }
+
+        .mq-editable-field {
+            width: 100%;
+            min-width: 50px; /* Keeps the block visible when empty */
+            min-height: 1.2em;
+            border: 1px solid transparent !important;
+            background: #2d2d2d !important;
+            color: #fff !important;
+            padding: 8px !important;
+        }
+
+        .mq-focused {
+            border: 1px solid var(--focus-color) !important;
+            box-shadow: 0 0 5px rgba(13, 110, 253, 0.3) !important;
+        }
+
+        .mq-cursor {
+            border-color: white !important;
+        }
+
+        /* Hide file input */
+        #import-input {
+            display: none;
+        }
+
+        /* Desmos Container */
+        #desmos-container {
+            width: 350px;
+            min-width: 350px;
+            border-left: 1px solid var(--border-color);
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #desmos-container iframe {
+            flex-grow: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside id="sidebar">
+        <div id="sidebar-header">
+            <h2 style="color: white; margin-bottom: 10px;">Pienotes</h2>
+            <div style="display:flex; gap: 5px;">
+                <button id="new-note-btn" class="btn">+ New Note</button>
+            </div>
+            <div class="sidebar-actions">
+                <button class="btn" onclick="exportNotes()">Export All</button>
+                <button class="btn" onclick="document.getElementById('import-input').click()">Import</button>
+                <input type="file" id="import-input" accept=".json" onchange="importNotes(event)">
+            </div>
+            <div style="margin-top: 8px;">
+                <p>Ctrl + E = convert to MathQuill</p>
+                <p>Shift + Enter = new text block</p>
+                <a href="https://quickref.me/latex.html" target="_blank">LaTeX Cheat Sheet</a>
+            </div>
+        </div>
+        <ul id="note-list"></ul>
+    </aside>
+
+    <main id="main-content">
+        <div class="header-container">
+            <button id="toggle-sidebar-btn" title="Toggle Sidebar">☰</button>
+            <input type="text" id="note-title" placeholder="Enter Note Title...">
+        </div>
+
+        <div id="editor-container"></div>
+    </main>
+
+    <aside id="desmos-container">
+        <iframe src="https://www.desmos.com/scientific"></iframe>
+    </aside>
+
+    <script>
+        // State Management
+        let notes = JSON.parse(localStorage.getItem('math_notes')) || [
+            {
+                id: Date.now(),
+                title: 'Welcome Note',
+                blocks: [{
+                    "id": "b1",
+                    "title": "Welcome Note",
+                    "blocks": [
+                      {
+                        "id": "b1790106053396",
+                        "type": "text",
+                        "value": "<b>Welcome to Pienotes!</b>"
+                      },
+                      {
+                        "id": "b1790106391514",
+                        "type": "text",
+                        "value": ""
+                      },
+                      {
+                        "id": "b1790106062778",
+                        "type": "text",
+                        "value": "Use <i>Ctrl + E</i> to create a <b>math block</b>."
+                      },
+                      {
+                        "id": "b1790106104290",
+                        "type": "text",
+                        "value": "Use <i>Shift + Enter</i> to create a new <b>text block</b>."
+                      },
+                      {
+                        "id": "b1790106251569",
+                        "type": "text",
+                        "value": ""
+                      },
+                      {
+                        "id": "b1790106251700",
+                        "type": "text",
+                        "value": "Inside a <b>math block</b>, use auto commands such as <i>sqrt</i>, <i>int</i>, <i>rArr</i> and many more to automatically convert strings into symbols."
+                      },
+                      {
+                        "id": "b1790106458932",
+                        "type": "text",
+                        "value": "Alternatively, type \"\\\" followed by a LaTeX command. A link to a LaTeX cheat sheet can be found on the left."
+                      },
+                      {
+                        "id": "b1790106480056",
+                        "type": "text",
+                        "value": ""
+                      },
+                      {
+                        "id": "b1790106320511",
+                        "type": "text",
+                        "value": "Inside a <b>text block</b>, you can use <i>Ctrl + B</i>, <i>Ctrl + I</i> and <i>Ctrl + Shift + S</i> to format your text."
+                      }
+                    ]
+                }]
+            }
+        ];
+        let activeNoteId = notes.length > 0 ? notes[0].id : null;
+
+        const MQ = MathQuill.getInterface(2);
+        const noteListEl = document.getElementById('note-list');
+        const titleInput = document.getElementById('note-title');
+        const editorContainer = document.getElementById('editor-container');
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggle-sidebar-btn');
+
+        // --- Sidebar Toggle ---
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+
+        // --- Persistence ---
+        function saveToDisk() {
+            localStorage.setItem('math_notes', JSON.stringify(notes));
+        }
+
+        // --- Export/Import ---
+        function exportNotes() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(notes, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "pienotes_export.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importNotes(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (Array.isArray(imported)) {
+                            const newNotes = [];
+
+                            imported.forEach(importedNote => {
+                                // Check if a note with the same title already exists
+                                const existingIndex = notes.findIndex(n => n.title === importedNote.title);
+
+                                if (existingIndex !== -1) {
+                                    // REPLACED: Keep original ID and structural position
+                                    importedNote.id = notes[existingIndex].id;
+                                    notes[existingIndex] = importedNote;
+                                } else {
+                                    // BRAND NEW: Verify ID unique identity
+                                    const idExists = notes.some(n => n.id === importedNote.id);
+                                    if (idExists) {
+                                        importedNote.id = Date.now() + Math.floor(Math.random() * 1000);
+                                    }
+                                    // Queue it up to be added to the top
+                                    newNotes.push(importedNote);
+                                }
+                            });
+
+                            // Prepend brand new notes to the top of the notes array
+                            if (newNotes.length > 0) {
+                                notes.unshift(...newNotes);
+                            }
+
+                            saveToDisk();
+
+                            // Focus Handling: 
+                            // If new notes arrived, focus the first new one. 
+                            // Otherwise, maintain current focus or default to top note.
+                            if (newNotes.length > 0) {
+                                loadNote(newNotes[0].id);
+                            } else if (activeNoteId && notes.find(n => n.id === activeNoteId)) {
+                                loadNote(activeNoteId);
+                            } else if (notes.length > 0) {
+                                loadNote(notes[0].id);
+                            }
+
+                            renderSidebar();
+                        }
+                    } catch (err) {
+                        alert("Invalid JSON file");
+                    }
+
+                    // Clear the input so the change listener can trigger on the same file again
+                    event.target.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+        // --- Sidebar & Note Management ---
+        function renderSidebar() {
+            noteListEl.innerHTML = '';
+            notes.forEach(note => {
+                const li = document.createElement('li');
+                li.className = `note-item ${note.id === activeNoteId ? 'active' : ''}`;
+                li.innerHTML = `
+                    <span class="note-name">${note.title || 'Untitled'}</span>
+                    <button class="delete-note-btn" onclick="deleteNote(event, ${note.id})">&times;</button>
+                `;
+                li.onclick = () => loadNote(note.id);
+                noteListEl.appendChild(li);
+            });
+        }
+
+        function deleteNote(e, id) {
+            e.stopPropagation();
+            if (!confirm("Delete this note?")) return;
+            notes = notes.filter(n => n.id !== id);
+            saveToDisk();
+            if (activeNoteId === id) {
+                activeNoteId = notes.length > 0 ? notes[0].id : null;
+            }
+            renderSidebar();
+            if (activeNoteId) loadNote(activeNoteId);
+            else {
+                editorContainer.innerHTML = '';
+                titleInput.value = '';
+            }
+        }
+
+        function loadNote(id) {
+            activeNoteId = id;
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+            titleInput.value = note.title;
+            renderSidebar();
+            renderEditor();
+        }
+
+        function createNewNote() {
+            const newId = Date.now();
+            notes.unshift({
+                id: newId,
+                title: 'New Note',
+                blocks: [{ id: 'b' + Date.now(), type: 'text', value: '' }]
+            });
+            saveToDisk();
+            loadNote(newId);
+            titleInput.focus();
+        }
+
+        // --- Editor Core ---
+        function renderEditor() {
+            editorContainer.innerHTML = '';
+            const note = notes.find(n => n.id === activeNoteId);
+            if (!note) return;
+
+            note.blocks.forEach(blockData => {
+                const el = blockData.type === 'text' ? createTextDOM(blockData) : createMathDOM(blockData);
+                editorContainer.appendChild(el);
+            });
+        }
+
+        function createTextDOM(blockData) {
+            const div = document.createElement('div');
+            div.className = 'block text-block';
+            div.contentEditable = true;
+
+            // Use innerHTML instead of textContent to load formatting
+            div.innerHTML = blockData.value;
+
+            div.dataset.id = blockData.id;
+
+            // Use innerHTML instead of textContent to save formatting
+            div.oninput = () => { blockData.value = div.innerHTML; saveToDisk(); };
+
+            return div;
+        }
+
+        function createMathDOM(blockData) {
+                const div = document.createElement('div');
+                div.className = 'block math-block';
+                div.dataset.id = blockData.id;
+                const span = document.createElement('span');
+                span.textContent = blockData.value;
+                div.appendChild(span);
+
+                const mf = MQ.MathField(span, {
+                    // Automatically convert these words to symbols instantly
+                    autoCommands: 'pi theta alpha beta gamma delta epsilon lambda infinity reals ' +
+                                    'neq approx ' +
+                                    'times div ast ' +
+                                    'sqrt nthroot sum int prod binom ' +
+                                    'parallel smile frown star ' +
+                                    'rarr rArr larr uarr darr rightarrow leftarrow uparrow downarrow overrightarrow overline underline vec implies ' +
+                                    'text',
+                    // Automatically format these as non-italicized functions
+                    autoOperatorNames: 'sin cos tan log ln dot solve zeros lim max min',
+                    supSubsRequireOperand: true,
+                    handlers: {
+                        edit: () => { blockData.value = mf.latex(); saveToDisk(); },
+                        upOutOf: () => focusPrevBlock(div),
+                        downOutOf: () => focusNextBlock(div)
+                    }
+                });
+                div.mathField = mf;
+                return div;
+            }
+
+        // --- Helpers ---
+        function focusBlock(blockEl) {
+            if (!blockEl) return;
+
+            // Save the ID of the block we are focusing
+            lastFocusedBlockId = blockEl.dataset.id;
+
+            if (blockEl.classList.contains('text-block')) {
+                blockEl.focus();
+            } else if (blockEl.mathField) {
+                blockEl.mathField.focus();
+            }
+        }
+
+        function focusPrevBlock(el) { focusBlock(el.previousElementSibling); }
+        function focusNextBlock(el) { focusBlock(el.nextElementSibling); }
+
+        function insertBlock(currentEl, type) {
+            const note = notes.find(n => n.id === activeNoteId);
+            const idx = note.blocks.findIndex(b => b.id == currentEl.dataset.id);
+            const newBlock = { id: 'b' + Date.now(), type: type, value: '' };
+            note.blocks.splice(idx + 1, 0, newBlock);
+            saveToDisk();
+            renderEditor();
+
+            setTimeout(() => {
+                const newEl = document.querySelector(`[data-id="${newBlock.id}"]`);
+                focusBlock(newEl);
+                if (newEl) {
+                    // Scroll the newly created block into view smoothly
+                    newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 10);
+        }
+
+        // --- Global Listeners ---
+        titleInput.oninput = () => {
+            const note = notes.find(n => n.id === activeNoteId);
+            if (note) {
+                note.title = titleInput.value;
+                saveToDisk();
+                renderSidebar();
+            }
+        };
+
+        document.getElementById('new-note-btn').onclick = createNewNote;
+
+        // --- New Helper Functions for Text Navigation ---
+            function isCaretAtStart(el) {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const preCaretRange = range.cloneRange();
+                    preCaretRange.selectNodeContents(el);
+                    preCaretRange.setEnd(range.startContainer, range.startOffset);
+                    return preCaretRange.toString().length === 0;
+                }
+                return false;
+            }
+
+            function isCaretAtEnd(el) {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const postCaretRange = range.cloneRange();
+                    postCaretRange.selectNodeContents(el);
+                    postCaretRange.setStart(range.endContainer, range.endOffset);
+                    return postCaretRange.toString().length === 0;
+                }
+                return false;
+            }
+
+            editorContainer.addEventListener('keydown', (e) => {
+                    const blockEl = e.target.closest('.block');
+                    if (!blockEl) return;
+
+                    // Handle Vertical Navigation for Text Blocks
+                    if (blockEl.classList.contains('text-block')) {
+                        if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            focusPrevBlock(blockEl);
+                        }
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            focusNextBlock(blockEl);
+                        }
+                        if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+                            e.preventDefault();
+                            document.execCommand('strikeThrough', false, null);
+                            // Force text block evaluation updates back to state engine
+                            blockEl.dispatchEvent(new Event('input'));
+                        }
+                    }
+
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const type = (blockEl.classList.contains('math-block') && !e.shiftKey) ? 'math' : 'text';
+                        insertBlock(blockEl, type);
+                    }
+
+                    if (e.ctrlKey && e.key === 'e') {
+                        e.preventDefault();
+                        const note = notes.find(n => n.id === activeNoteId);
+                        const block = note.blocks.find(b => b.id == blockEl.dataset.id);
+                        if (block.type === 'text' && (block.value === '' || block.value === '\n')) {
+                            block.type = 'math';
+                            renderEditor();
+                            setTimeout(() => {
+                                const convertedEl = document.querySelector(`[data-id="${block.id}"]`);
+                                focusBlock(convertedEl);
+                                if (convertedEl) {
+                                    // Scroll into view after height changes
+                                    convertedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                            }, 10);
+                        } else {
+                            insertBlock(blockEl, 'math');
+                        }
+                    }
+
+                    if (e.key === 'Backspace') {
+                        const note = notes.find(n => n.id === activeNoteId);
+                        const blockData = note.blocks.find(b => b.id == blockEl.dataset.id);
+
+                        // Determine if the block is currently empty
+                        let isBlockEmpty = false;
+                        if (blockEl.classList.contains('math-block')) {
+                            // Check MathQuill's internal LaTeX content
+                            isBlockEmpty = blockEl.mathField.latex() === '';
+                        } else {
+                            isBlockEmpty = blockEl.textContent === '';
+                        }
+
+                        // Only delete the block if it's already empty and not the only block
+                        if (isBlockEmpty && note.blocks.length > 1) {
+                            e.preventDefault(); // Stop backspace from affecting the previous block
+                            const prev = blockEl.previousElementSibling;
+                            note.blocks = note.blocks.filter(b => b.id != blockData.id);
+                            saveToDisk();
+                            renderEditor();
+                            if (prev) focusBlock(document.querySelector(`[data-id="${prev.dataset.id}"]`));
+                        }
+                    }
+                });
+
+        // Initial Load
+        renderSidebar();
+        if (activeNoteId) loadNote(activeNoteId);
+
+    </script>
+</body>
+
+</html>
