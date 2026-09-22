@@ -1,6 +1,6 @@
 # Pienotes
 
-The most efficient note taking app for math. Pienotes uses [MathQuill](https://github.com/mathquill/mathquill). MathQuill allows you to type auto commands such as "sqrt" or "int" and automatically converts those into symbols.
+The most efficient note taking app for math. Pienotes uses [MathQuill](https://github.com/mathquill/mathquill). MathQuill allows you to type auto commands such as "sqrt" or "int" and automatically convert those into symbols.
 
 ## How to use
 
