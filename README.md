@@ -33,7 +33,7 @@ List of auto commands:
 |$\overrightarrow{abc}$|overrightarrow|$\vec{v}$|vec|
 |$\implies$|implies|
 
-## AI disclaimer
+## AI disclosure
 
 99% of this app was written by AI.
 
