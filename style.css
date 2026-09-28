@@ -1,0 +1,316 @@
+:root {
+    /* Permanent Dark Mode Palette */
+    --bg-color: #121212;
+    --sidebar-bg: #1e1e1e;
+    --card-bg: #252525;
+    --text-color: #e0e0e0;
+    --sidebar-text: #b0b0b0;
+    --focus-color: #0d6efd;
+    --border-color: #333;
+    --danger-color: #ff5252;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    overflow: hidden;
+}
+
+/* Sidebar */
+#sidebar {
+    width: 280px;
+    min-width: 280px;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+    transition: margin-left 0.3s ease;
+}
+
+#sidebar.collapsed {
+    margin-left: -280px;
+}
+
+#sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.btn {
+    background: #333;
+    color: white;
+    border: 1px solid #444;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background: #444;
+}
+
+#new-note-btn {
+    background: var(--focus-color);
+    border: none;
+    font-weight: bold;
+    flex-grow: 1;
+}
+
+#new-note-btn:hover {
+    background: #0b5ed7;
+}
+
+#note-list {
+    list-style: none;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.note-item {
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.note-item:hover {
+    background: #2a2a2a;
+}
+
+.note-item.active {
+    background-color: #333;
+    border-left: 4px solid var(--focus-color);
+    color: white;
+}
+
+.delete-note-btn {
+    opacity: 0;
+    background: transparent;
+    color: var(--danger-color);
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+.note-item:hover .delete-note-btn {
+    opacity: 1;
+}
+
+/* Main Content */
+#main-content {
+    flex-grow: 1;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    min-width: 300px;
+}
+
+.header-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+#toggle-sidebar-btn,
+#toggle-desmos-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: white;
+    font-size: 1.2rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#toggle-sidebar-btn {
+    margin-left: 5px;
+}
+
+#toggle-desmos-btn {
+    margin-right: 5px;
+}
+
+#toggle-sidebar-btn:hover,
+#toggle-desmos-btn:hover {
+    background: #333;
+}
+
+#note-title {
+    font-size: 2rem;
+    border: none;
+    background: transparent;
+    color: white;
+    outline: none;
+    flex-grow: 1;
+}
+
+#editor-container {
+    flex-grow: 1;
+    background: var(--card-bg);
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    font-size: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow-y: auto;
+}
+
+/* Blocks */
+.block {
+    padding: 5px 10px;
+    border-radius: 4px;
+    min-height: 1.5em;
+    flex-shrink: 0;
+}
+
+.text-block {
+    outline: none;
+    border-left: 3px solid transparent;
+    color: #f1f1f1;
+}
+
+.text-block:focus {
+    border-left: 3px solid var(--focus-color);
+    background: #2d2d2d;
+}
+
+.mq-editable-field {
+    width: 100%;
+    min-width: 50px;
+    min-height: 1.2em;
+    border: 1px solid transparent !important;
+    background: #2d2d2d !important;
+    color: #fff !important;
+    padding: 8px !important;
+}
+
+.mq-focused {
+    border: 1px solid var(--focus-color) !important;
+    box-shadow: 0 0 5px rgba(13, 110, 253, 0.3) !important;
+}
+
+.mq-cursor {
+    border-color: white !important;
+}
+
+/* Hide file input */
+#import-input {
+    display: none;
+}
+
+/* Desmos Container & Resizer */
+#desmos-container {
+    --desmos-width: 350px;
+    width: var(--desmos-width);
+    min-width: 0;
+    position: relative;
+    border-left: 1px solid var(--border-color);
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    transition: margin-right 0.3s ease;
+}
+
+#desmos-container.collapsed {
+    margin-right: calc(-1 * var(--desmos-width));
+}
+
+#desmos-resizer {
+    position: absolute;
+    top: 0;
+    left: -8px;
+    width: 16px;
+    height: 100%;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 10;
+}
+
+#desmos-resizer::after {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: transparent;
+    transition: background 0.2s;
+}
+
+#desmos-resizer:hover::after,
+body.is-resizing #desmos-resizer::after {
+    background: var(--focus-color);
+}
+
+/* Active Dragging Global Overrides */
+body.is-resizing,
+body.is-resizing * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: ew-resize !important;
+}
+
+body.is-resizing iframe {
+    pointer-events: none;
+}
+
+#desmos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 17px 12px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+#close-desmos-btn {
+    background: transparent;
+    border: none;
+    color: var(--sidebar-text);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+#close-desmos-btn:hover {
+    color: white;
+}
+
+#desmos-container iframe {
+    flex-grow: 1;
+    border: none;
+    width: 100%;
+    height: 100%;
+}
