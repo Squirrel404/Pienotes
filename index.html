@@ -146,7 +146,7 @@
         let startWidth = 0;
 
         function startResize(e) {
-            e.preventDefault(); // Prevents native drag-and-drop behavior
+            e.preventDefault();
             isResizing = true;
             startX = e.clientX;
             startWidth = desmosContainer.getBoundingClientRect().width;
@@ -168,10 +168,9 @@
             e.preventDefault();
 
             const currentX = e.clientX;
-            const deltaX = startX - currentX; // Dragging left increases width
+            const deltaX = startX - currentX;
             let newWidth = startWidth + deltaX;
 
-            // Constrain width (min 200px, max 85% of screen width)
             const minWidth = 200;
             const maxWidth = Math.min(window.innerWidth - 80, window.innerWidth * 0.85);
 
@@ -363,7 +362,22 @@
                 handlers: {
                     edit: () => { blockData.value = mf.latex(); saveToDisk(); },
                     upOutOf: () => focusPrevBlock(div),
-                    downOutOf: () => focusNextBlock(div)
+                    downOutOf: () => focusNextBlock(div),
+                    deleteOutOf: (dir) => {
+                        if (dir === -1 || dir === MQ.L) {
+                            const note = notes.find(n => n.id === activeNoteId);
+                            if (note && note.blocks.length > 1) {
+                                const prev = div.previousElementSibling;
+                                note.blocks = note.blocks.filter(b => b.id != blockData.id);
+                                saveToDisk();
+                                renderEditor();
+                                if (prev) {
+                                    const prevEl = document.querySelector(`[data-id="${prev.dataset.id}"]`);
+                                    focusBlock(prevEl, 'end');
+                                }
+                            }
+                        }
+                    }
                 }
             });
             div.mathField = mf;
@@ -371,20 +385,51 @@
         }
 
         // --- Helpers ---
-        function focusBlock(blockEl) {
+        function focusBlock(blockEl, position = 'start') {
             if (!blockEl) return;
-
-            lastFocusedBlockId = blockEl.dataset.id;
 
             if (blockEl.classList.contains('text-block')) {
                 blockEl.focus();
+                const sel = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(blockEl);
+                range.collapse(position === 'start');
+                sel.removeAllRanges();
+                sel.addRange(range);
             } else if (blockEl.mathField) {
                 blockEl.mathField.focus();
+                if (position === 'end') {
+                    blockEl.mathField.moveToRightEnd();
+                } else {
+                    blockEl.mathField.moveToLeftEnd();
+                }
             }
         }
 
-        function focusPrevBlock(el) { focusBlock(el.previousElementSibling); }
-        function focusNextBlock(el) { focusBlock(el.nextElementSibling); }
+        function focusPrevBlock(el) { focusBlock(el.previousElementSibling, 'end'); }
+        function focusNextBlock(el) { focusBlock(el.nextElementSibling, 'start'); }
+
+        function isCursorOnFirstLine(blockEl) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return true;
+            const range = selection.getRangeAt(0);
+            const rects = range.getClientRects();
+            if (rects.length === 0) return true;
+            const cursorRect = rects[0];
+            const blockRect = blockEl.getBoundingClientRect();
+            return (cursorRect.top - blockRect.top) < 12;
+        }
+
+        function isCursorOnLastLine(blockEl) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return true;
+            const range = selection.getRangeAt(0);
+            const rects = range.getClientRects();
+            if (rects.length === 0) return true;
+            const cursorRect = rects[rects.length - 1];
+            const blockRect = blockEl.getBoundingClientRect();
+            return (blockRect.bottom - cursorRect.bottom) < 12;
+        }
 
         function insertBlock(currentEl, type) {
             const note = notes.find(n => n.id === activeNoteId);
@@ -396,7 +441,7 @@
 
             setTimeout(() => {
                 const newEl = document.querySelector(`[data-id="${newBlock.id}"]`);
-                focusBlock(newEl);
+                focusBlock(newEl, 'start');
                 if (newEl) {
                     newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
@@ -419,14 +464,21 @@
             const blockEl = e.target.closest('.block');
             if (!blockEl) return;
 
+            const note = notes.find(n => n.id === activeNoteId);
+            const blockData = note ? note.blocks.find(b => b.id == blockEl.dataset.id) : null;
+
             if (blockEl.classList.contains('text-block')) {
                 if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    focusPrevBlock(blockEl);
+                    if (isCursorOnFirstLine(blockEl)) {
+                        e.preventDefault();
+                        focusPrevBlock(blockEl);
+                    }
                 }
                 if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    focusNextBlock(blockEl);
+                    if (isCursorOnLastLine(blockEl)) {
+                        e.preventDefault();
+                        focusNextBlock(blockEl);
+                    }
                 }
                 if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                     e.preventDefault();
@@ -437,20 +489,59 @@
 
             if (e.key === 'Enter') {
                 e.preventDefault();
-                const type = (blockEl.classList.contains('math-block') && !e.shiftKey) ? 'math' : 'text';
-                insertBlock(blockEl, type);
+                if (blockEl.classList.contains('text-block')) {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount) return;
+                    const range = selection.getRangeAt(0);
+                    if (!blockEl.contains(range.startContainer)) return;
+
+                    const endRange = document.createRange();
+                    endRange.selectNodeContents(blockEl);
+                    endRange.setStart(range.endContainer, range.endOffset);
+
+                    const rightFragment = endRange.extractContents();
+                    const tempDiv = document.createElement('div');
+                    tempDiv.appendChild(rightFragment);
+                    const rightHtml = tempDiv.innerHTML;
+
+                    if (blockData) {
+                        blockData.value = blockEl.innerHTML;
+                    }
+
+                    const idx = note.blocks.findIndex(b => b.id == blockEl.dataset.id);
+                    const newBlock = { id: 'b' + Date.now(), type: 'text', value: rightHtml };
+                    note.blocks.splice(idx + 1, 0, newBlock);
+                    saveToDisk();
+                    renderEditor();
+
+                    setTimeout(() => {
+                        const newEl = document.querySelector(`[data-id="${newBlock.id}"]`);
+                        focusBlock(newEl, 'start');
+                        if (newEl) {
+                            const sel = window.getSelection();
+                            const rng = document.createRange();
+                            rng.setStart(newEl, 0);
+                            rng.collapse(true);
+                            sel.removeAllRanges();
+                            sel.addRange(rng);
+                            newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 10);
+                } else {
+                    const type = !e.shiftKey ? 'math' : 'text';
+                    insertBlock(blockEl, type);
+                }
             }
 
             if (e.ctrlKey && e.key === 'e') {
                 e.preventDefault();
-                const note = notes.find(n => n.id === activeNoteId);
-                const block = note.blocks.find(b => b.id == blockEl.dataset.id);
-                if (block.type === 'text' && (block.value === '' || block.value === '\n')) {
-                    block.type = 'math';
+                if (blockData && blockData.type === 'text' && blockEl.textContent.trim() === '') {
+                    blockData.type = 'math';
+                    blockData.value = '';
                     renderEditor();
                     setTimeout(() => {
-                        const convertedEl = document.querySelector(`[data-id="${block.id}"]`);
-                        focusBlock(convertedEl);
+                        const convertedEl = document.querySelector(`[data-id="${blockData.id}"]`);
+                        focusBlock(convertedEl, 'start');
                         if (convertedEl) {
                             convertedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                         }
@@ -461,23 +552,53 @@
             }
 
             if (e.key === 'Backspace') {
-                const note = notes.find(n => n.id === activeNoteId);
-                const blockData = note.blocks.find(b => b.id == blockEl.dataset.id);
+                if (blockEl.classList.contains('text-block') && blockData) {
+                    const isBlockEmpty = blockEl.textContent.trim() === '';
+                    if (isBlockEmpty && note.blocks.length > 1) {
+                        e.preventDefault();
+                        const prev = blockEl.previousElementSibling;
+                        note.blocks = note.blocks.filter(b => b.id != blockData.id);
+                        saveToDisk();
+                        renderEditor();
+                        if (prev) focusBlock(document.querySelector(`[data-id="${prev.dataset.id}"]`), 'end');
+                    } else if (!isBlockEmpty) {
+                        const selection = window.getSelection();
+                        if (selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            if (range.collapsed) {
+                                const preRange = document.createRange();
+                                preRange.selectNodeContents(blockEl);
+                                preRange.setEnd(range.startContainer, range.startOffset);
+                                if (preRange.toString() === '') {
+                                    e.preventDefault();
+                                    const prev = blockEl.previousElementSibling;
+                                    if (prev && prev.classList.contains('text-block')) {
+                                        const prevBlockData = note.blocks.find(b => b.id == prev.dataset.id);
+                                        const currentHtml = blockEl.innerHTML;
+                                        if (prevBlockData) {
+                                            prevBlockData.value += currentHtml;
+                                        }
+                                        note.blocks = note.blocks.filter(b => b.id != blockData.id);
+                                        saveToDisk();
+                                        renderEditor();
 
-                let isBlockEmpty = false;
-                if (blockEl.classList.contains('math-block')) {
-                    isBlockEmpty = blockEl.mathField.latex() === '';
-                } else {
-                    isBlockEmpty = blockEl.textContent === '';
-                }
-
-                if (isBlockEmpty && note.blocks.length > 1) {
-                    e.preventDefault();
-                    const prev = blockEl.previousElementSibling;
-                    note.blocks = note.blocks.filter(b => b.id != blockData.id);
-                    saveToDisk();
-                    renderEditor();
-                    if (prev) focusBlock(document.querySelector(`[data-id="${prev.dataset.id}"]`));
+                                        setTimeout(() => {
+                                            const prevEl = document.querySelector(`[data-id="${prevBlockData.id}"]`);
+                                            if (prevEl) {
+                                                prevEl.focus();
+                                                const sel = window.getSelection();
+                                                const rng = document.createRange();
+                                                rng.selectNodeContents(prevEl);
+                                                rng.collapse(false);
+                                                sel.removeAllRanges();
+                                                sel.addRange(rng);
+                                            }
+                                        }, 10);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });
